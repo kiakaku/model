@@ -4,28 +4,29 @@ import java.text.{DateFormat, SimpleDateFormat}
 import java.util.Calendar
 
 import com.vega.scorecard.model.hdfs.{HdfsFileUtils, HdfsReader}
-import org.apache.spark.sql.types.{DoubleType, IntegerType}
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField, StructType}
+import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import scopt.OptionParser
 import vn.com.vega.ml.scoring.scorecard.{CreditScorecard, CreditScorecardModel}
 
+import scala.util.Random
+
 object Main {
-  case class Command(model_id:String = null, label_with_hash_path:String = null, features_path:String = null,
+
+  case class Command(label_with_hash_path:String = null, features_path:String = null,
                      model_out_path:String = null, score_out_path:String = null, train:Double = 0.7, test:Double = 0.3,
                      cleanUseless:Boolean = false, targetPooint:Double = 200, targetOdds:Double = 2.0, pdo:Double = 20,
                      partitions:Int = 10, autobin:Int = 5){
     def notEmpty(str:String):Boolean = str != null && !str.isEmpty
     def is_valid():Boolean = {
-      notEmpty(model_id) && notEmpty(label_with_hash_path) && notEmpty(features_path) && notEmpty(model_out_path) && notEmpty(score_out_path)
+      notEmpty(label_with_hash_path) && notEmpty(features_path) && notEmpty(model_out_path) && notEmpty(score_out_path)
     }
   }
+
   def createParser(): OptionParser[Command] = {
     val parser = new scopt.OptionParser[Command]("scorecard") {
       head("scorecard", "1.0")
-      opt[String]('i', "id").required().valueName("<MODEL_ID>").action(
-        (x, c) => c.copy(model_id = x.trim)
-      ).text("id of model (required)")
       opt[String]('l', "label_path").required().valueName("<label_with_hash_path>").action(
           (x, c) => c.copy(label_with_hash_path = x.trim)
       ).text("data label with hash isdn path (must has 'isdn', 'label' column. comma delimiter with header)")
@@ -75,7 +76,6 @@ object Main {
     }
   }
 
-
   def run(cmd:Command, spark: SparkSession):Unit = {
     import spark.implicits._
     val label_df = HdfsReader.read_parquet(spark, HdfsFileUtils.get_fullpath(cmd.label_with_hash_path))
@@ -104,21 +104,21 @@ object Main {
     csModel.formatPoint(cmd.targetPooint, cmd.targetOdds, cmd.pdo)
     val json_model = CreditScorecardModel.serialize(csModel)
     println(json_model)
-//
-//    val scoreDf:DataFrame = csModel.score(features_df)
-//    val model_id = generate_model_id()
-//    val curr_date = get_curr_date()
-//    val model_df = spark.sparkContext.parallelize(Seq(model_id, curr_date, json_model))
-//      .toDF("model_id", "data_date_key", "model")
-//    model_df.write.partitionBy("data_date_key")
-//      .mode(SaveMode.Overwrite)
-//      .parquet(HdfsFileUtils.get_fullpath(cmd.model_out_path))
-//    scoreDf
-//      .withColumn("data_date_key", lit(curr_date))
-//      .withColumn("model_id", lit(model_id))
-//      .write.mode(SaveMode.Overwrite)
-//      .partitionBy("data_date_key")
-//      .parquet(HdfsFileUtils.get_fullpath(cmd.score_out_path))
+
+    val scoreDf:DataFrame = csModel.score(features_df)
+    val model_id = generate_model_id()
+    val curr_date = get_curr_date()
+    val model_df = spark.sparkContext.parallelize(Seq(Seq(model_id, curr_date, json_model)))
+      .toDF("model_id", "data_date_key", "model")
+    model_df.write.partitionBy("data_date_key")
+      .mode(SaveMode.Append)
+      .parquet(HdfsFileUtils.get_fullpath(cmd.model_out_path))
+    scoreDf
+      .withColumn("data_date_key", lit(curr_date))
+      .withColumn("model_id", lit(model_id))
+      .write.mode(SaveMode.Append)
+      .partitionBy("data_date_key")
+      .parquet(HdfsFileUtils.get_fullpath(cmd.score_out_path))
   }
 
   def get_predictor(df:DataFrame):(Set[String], Set[String]) = {
@@ -136,6 +136,14 @@ object Main {
       }
     })
     (numericPredictors, nominalPredictors)
+  }
+
+  def generate_df(rows:Int, cols:Int, spark:SparkSession):DataFrame = {
+    val data = (1 to rows).map(_ => Seq.fill(cols)(Random.nextInt()))
+    val cols_name = (1 to cols).map(i => "column_" + i)
+    val sche = StructType(cols_name.map(fieldName => StructField(fieldName, IntegerType, true)))
+    val rdd = spark.sparkContext.parallelize(data.map( x => Row.fromSeq(x)))
+    spark.sqlContext.createDataFrame(rdd, sche)
   }
 
   val format:DateFormat = new SimpleDateFormat("yyyyMMdd")
