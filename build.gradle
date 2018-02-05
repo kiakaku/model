@@ -1,0 +1,62 @@
+group 'com.vega.scorecard.model'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
+    }
+}
+
+apply plugin: 'scala'
+apply plugin: "maven-publish"
+apply plugin: "com.github.johnrengelman.shadow"
+
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url "http://jcenter.vega.vn:8081/artifactory/libs-release-local"
+    }
+}
+
+dependencies {
+    // Use Scala 2.11 in our library project
+    compile 'org.scala-lang:scala-library:2.11.8'
+    compile group: 'vn.com.vega.ml', name: 'core', version: '1.4.5'
+    compile group: 'com.github.scopt', name: 'scopt_2.11', version: '3.7.0'
+    compile group: 'org.apache.spark', name: 'spark-sql_2.11', version: '2.1.0'
+
+}
+
+shadowJar {
+    baseName = 'model'
+    classifier = null
+    zip64 true
+
+    manifest {
+        attributes 'Main-Class': 'com.vega.scorecard.model.Main'
+    }
+
+    dependencies {
+        exclude(dependency('org.apache.spark::'))
+        exclude(dependency('org.scala-lang::'))
+        exclude(dependency('org.scalatest::'))
+        exclude(dependency('junit::'))
+        exclude(dependency('org.scalanlp::'))
+        exclude(dependency {
+            it.moduleGroup == 'junit'
+        })
+        exclude(dependency {
+            it.moduleGroup == 'org.scalatest'
+        })
+        exclude(dependency {
+            it.moduleGroup == 'org.scala-lang'
+        })
+    }
+
+    return true
+}
