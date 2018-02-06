@@ -4,6 +4,7 @@ import java.text.{DateFormat, SimpleDateFormat}
 import java.util.Calendar
 
 import com.vega.scorecard.model.hdfs.{HdfsFileUtils, HdfsReader}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
@@ -108,7 +109,7 @@ object Main {
     val scoreDf:DataFrame = csModel.score(features_df)
     val model_id = generate_model_id()
     val curr_date = get_curr_date()
-    val model_df = spark.sparkContext.parallelize(Seq(Seq(model_id, curr_date, json_model)))
+    val model_df = spark.sparkContext.parallelize(Seq((model_id, curr_date, json_model)))
       .toDF("model_id", "data_date_key", "model")
     model_df.write.partitionBy("data_date_key")
       .mode(SaveMode.Append)
@@ -138,11 +139,11 @@ object Main {
     (numericPredictors, nominalPredictors)
   }
 
-  def generate_df(rows:Int, cols:Int, spark:SparkSession):DataFrame = {
-    val data = (1 to rows).map(_ => Seq.fill(cols)(Random.nextInt()))
+  def generate_df(rows:Int, cols:Int, spark: SparkSession): DataFrame = {
+    val data = (1 to rows).map(_ => Seq.fill(cols)(Random.nextInt(10)))
     val cols_name = (1 to cols).map(i => "column_" + i)
     val sche = StructType(cols_name.map(fieldName => StructField(fieldName, IntegerType, true)))
-    val rdd = spark.sparkContext.parallelize(data.map( x => Row.fromSeq(x)))
+    val rdd: RDD[Row] = spark.sparkContext.parallelize(data.map( x => Row.fromSeq(x)))
     spark.sqlContext.createDataFrame(rdd, sche)
   }
 
