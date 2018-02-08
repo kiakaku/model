@@ -2,10 +2,12 @@
   <library name="Gradle: vn.com.vega.ml:core:1.4.5">
     <CLASSES>
       <root url="jar://$MAVEN_REPOSITORY$/vn/com/vega/ml/core/1.4.5/core-1.4.5.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/vn.com.vega.ml/core/1.4.5/8557284bd57911d277604325a0a5d9c5129a2df/core-1.4.5.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
       <root url="jar://$MAVEN_REPOSITORY$/vn/com/vega/ml/core/1.4.5/core-1.4.5-sources.jar!/" />
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/vn.com.vega.ml/core/1.4.5/ea5acb7a6676966886e6d4cd15a9fd60bb8947f8/core-1.4.5-sources.jar!/" />
     </SOURCES>
   </library>
 </component>
