@@ -23,6 +23,7 @@ object Main {
     val config_path = args(1)
     val config:ScorecardConfig = ConfigLoader.load(spark, config_path, configType)
 
+    run(spark, config)
 
   }
 
